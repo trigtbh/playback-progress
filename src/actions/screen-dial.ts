@@ -2,57 +2,54 @@ import { action, SingletonAction, WillAppearEvent } from "@elgato/streamdeck";
 
 import type { NowPlaying } from "../media/nowplaying";
 import { getCurrent } from "../media/store";
+import { nowPlayingText, panelSvg } from "../render/strip";
 
 /**
- * Base class for the four Stream Deck+ encoder "screen" widgets. Each subclass decides what text it
- * shows for a given now-playing snapshot, and renders it to the touch screen via the `screen` layout.
+ * Base class for the four Stream Deck+ encoder panels. Together they render a single line of
+ * now-playing text centered across the whole touch strip; each panel draws its own slice based on its
+ * {@link panelIndex} (0 = leftmost).
  */
 abstract class ScreenDial extends SingletonAction {
-	/** Computes the text this screen should display for the given now-playing state. */
-	protected abstract text(np: NowPlaying | null): string;
+	/** 0-based position of this panel within the touch strip. */
+	protected abstract readonly panelIndex: number;
 
 	override onWillAppear(ev: WillAppearEvent): void | Promise<void> {
-		// The touch screen is only present on encoders (Stream Deck+); guard so setFeedback is valid.
 		if (ev.action.isDial()) {
-			return ev.action.setFeedback({ value: this.text(getCurrent()) });
+			return ev.action.setFeedback({ value: this.slice(getCurrent()) });
 		}
 	}
 
-	/** Pushes the latest now-playing text to every visible instance of this action. */
+	/** Pushes this panel's slice of the now-playing line to every visible instance of this action. */
 	async refresh(np: NowPlaying | null): Promise<void> {
-		const value = this.text(np);
+		const value = this.slice(np);
 		for (const action of this.actions) {
 			if (action.isDial()) {
 				await action.setFeedback({ value });
 			}
 		}
 	}
+
+	private slice(np: NowPlaying | null): string {
+		return panelSvg(nowPlayingText(np), this.panelIndex);
+	}
 }
 
 @action({ UUID: "com.trigtbh.playback-progress.screen1" })
 export class Screen1 extends ScreenDial {
-	protected text(np: NowPlaying | null): string {
-		return np?.title ?? "";
-	}
+	protected readonly panelIndex = 0;
 }
 
 @action({ UUID: "com.trigtbh.playback-progress.screen2" })
 export class Screen2 extends ScreenDial {
-	protected text(np: NowPlaying | null): string {
-		return np?.artist ?? "";
-	}
+	protected readonly panelIndex = 1;
 }
 
 @action({ UUID: "com.trigtbh.playback-progress.screen3" })
 export class Screen3 extends ScreenDial {
-	protected text(): string {
-		return "3";
-	}
+	protected readonly panelIndex = 2;
 }
 
 @action({ UUID: "com.trigtbh.playback-progress.screen4" })
 export class Screen4 extends ScreenDial {
-	protected text(): string {
-		return "4";
-	}
+	protected readonly panelIndex = 3;
 }

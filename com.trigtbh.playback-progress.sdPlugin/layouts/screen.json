@@ -4,16 +4,8 @@
 	"items": [
 		{
 			"key": "value",
-			"type": "text",
-			"rect": [0, 0, 200, 100],
-			"alignment": "center",
-			"color": "#ffffff",
-			"text-overflow": "ellipsis",
-			"font": {
-				"size": 18,
-				"weight": 600
-			},
-			"value": ""
+			"type": "pixmap",
+			"rect": [0, 0, 200, 100]
 		}
 	]
 }
