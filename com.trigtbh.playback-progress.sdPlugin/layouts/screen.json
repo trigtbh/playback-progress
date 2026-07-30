@@ -1,0 +1,18 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
+	"id": "screen",
+	"items": [
+		{
+			"key": "value",
+			"type": "text",
+			"rect": [0, 0, 200, 100],
+			"alignment": "center",
+			"color": "#ffffff",
+			"font": {
+				"size": 48,
+				"weight": 600
+			},
+			"value": ""
+		}
+	]
+}

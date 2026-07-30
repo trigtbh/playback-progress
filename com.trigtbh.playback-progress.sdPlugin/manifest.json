@@ -4,14 +4,62 @@
 	"Author": "trigtbh",
 	"Actions": [
 		{
-			"Name": "Counter",
-			"UUID": "com.trigtbh.playback-progress.increment",
+			"Name": "Screen 1",
+			"UUID": "com.trigtbh.playback-progress.screen1",
 			"Icon": "imgs/actions/counter/icon",
-			"Tooltip": "Displays a count, which increments by one on press.",
-			"PropertyInspectorPath": "ui/increment-counter.html",
-			"Controllers": [
-				"Keypad"
-			],
+			"Tooltip": "Progress bar screen 1.",
+			"Controllers": ["Encoder"],
+			"Encoder": {
+				"layout": "layouts/screen.json"
+			},
+			"States": [
+				{
+					"Image": "imgs/actions/counter/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "Screen 2",
+			"UUID": "com.trigtbh.playback-progress.screen2",
+			"Icon": "imgs/actions/counter/icon",
+			"Tooltip": "Progress bar screen 2.",
+			"Controllers": ["Encoder"],
+			"Encoder": {
+				"layout": "layouts/screen.json"
+			},
+			"States": [
+				{
+					"Image": "imgs/actions/counter/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "Screen 3",
+			"UUID": "com.trigtbh.playback-progress.screen3",
+			"Icon": "imgs/actions/counter/icon",
+			"Tooltip": "Progress bar screen 3.",
+			"Controllers": ["Encoder"],
+			"Encoder": {
+				"layout": "layouts/screen.json"
+			},
+			"States": [
+				{
+					"Image": "imgs/actions/counter/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "Screen 4",
+			"UUID": "com.trigtbh.playback-progress.screen4",
+			"Icon": "imgs/actions/counter/icon",
+			"Tooltip": "Progress bar screen 4.",
+			"Controllers": ["Encoder"],
+			"Encoder": {
+				"layout": "layouts/screen.json"
+			},
 			"States": [
 				{
 					"Image": "imgs/actions/counter/key",
