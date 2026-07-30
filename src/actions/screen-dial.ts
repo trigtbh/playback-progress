@@ -2,7 +2,7 @@ import { action, SingletonAction, WillAppearEvent } from "@elgato/streamdeck";
 
 import type { NowPlaying } from "../media/nowplaying";
 import { getCurrent } from "../media/store";
-import { nowPlayingText, panelSvg } from "../render/strip";
+import { panelSvg } from "../render/strip";
 
 /**
  * Base class for the four Stream Deck+ encoder panels. Together they render a single line of
@@ -30,7 +30,7 @@ abstract class ScreenDial extends SingletonAction {
 	}
 
 	private slice(np: NowPlaying | null): string {
-		return panelSvg(nowPlayingText(np), this.panelIndex);
+		return panelSvg(np, this.panelIndex);
 	}
 }
 
