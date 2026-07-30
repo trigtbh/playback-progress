@@ -1,4 +1,5 @@
 import type { NowPlaying } from "../media/nowplaying";
+import { COVER_PANEL_INDEX, leftPanelContent } from "./leftpanel";
 
 /** Width of a single encoder panel, in pixels. */
 const PANEL_WIDTH = 200;
@@ -165,21 +166,32 @@ function timeLabels(np: NowPlaying | null, panelIndex: number, now: number): str
  *
  * @param np Current now-playing state, or `null` when nothing is playing.
  * @param panelIndex 0-based index of the panel (0 = leftmost).
+ * @param artworkUri Cover art data URI for the left panel, or `null` when unknown.
+ * @param barColors Per-bar colours sampled from the cover, or `null` when unknown.
  * @returns A base64-encoded SVG data URI for the panel's pixmap.
  */
-export function panelSvg(np: NowPlaying | null, panelIndex: number): string {
+export function panelSvg(
+	np: NowPlaying | null,
+	panelIndex: number,
+	artworkUri: string | null,
+	barColors: string[] | null,
+): string {
 	const now = Date.now();
 	const centerX = CENTER_X - panelIndex * PANEL_WIDTH;
 	const title = np !== null ? np.title : "";
 	const artist = np !== null ? np.artist : "";
 
-	const content =
+	let content =
 		textEl(title, centerX, TITLE_BASELINE, TITLE_SIZE, 1) +
 		textEl(artist, centerX, ARTIST_BASELINE, ARTIST_SIZE, ARTIST_OPACITY) +
 		progressBar(playbackProgress(np, now), panelIndex) +
 		timeLabels(np, panelIndex, now);
 
-	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${PANEL_WIDTH}" height="${HEIGHT}" viewBox="0 0 ${PANEL_WIDTH} ${HEIGHT}">${content}</svg>`;
+	if (panelIndex === COVER_PANEL_INDEX) {
+		content += leftPanelContent(np, artworkUri, barColors, now);
+	}
+
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${PANEL_WIDTH}" height="${HEIGHT}" viewBox="0 0 ${PANEL_WIDTH} ${HEIGHT}">${content}</svg>`;
 
 	return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
