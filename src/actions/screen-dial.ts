@@ -2,8 +2,8 @@ import { action, SingletonAction, TouchTapEvent, WillAppearEvent } from "@elgato
 
 import { seekTo } from "../media/control";
 import type { NowPlaying } from "../media/nowplaying";
-import { getArtwork, getBarColors, getCurrent, setCurrent } from "../media/store";
-import { COVER_PANEL_INDEX, COVER_SIZE, toggleLeftPanel } from "../render/leftpanel";
+import { getArtwork, getBarColors, getCoverWidth, getCurrent, setCurrent } from "../media/store";
+import { COVER_PANEL_INDEX, toggleLeftPanel } from "../render/leftpanel";
 import { panelSvg, seekFractionFromTap } from "../render/strip";
 
 /**
@@ -24,13 +24,12 @@ abstract class ScreenDial extends SingletonAction {
 	/** Tapping the cover toggles the visualizer; tapping the progress bar seeks. */
 	override async onTouchTap(ev: TouchTapEvent): Promise<void> {
 		const [x, y] = ev.payload.tapPos;
+		const coverW = getCoverWidth();
 
-		// Cover panel: tapping the cover / visualizer square morphs between the two.
-		if (this.panelIndex === COVER_PANEL_INDEX) {
-			if (x <= COVER_SIZE) {
-				toggleLeftPanel();
-				setCurrent(getCurrent()); // re-render immediately with the transition underway
-			}
+		// Cover panel: tapping the cover / visualizer area morphs between the two.
+		if (this.panelIndex === COVER_PANEL_INDEX && x <= coverW) {
+			toggleLeftPanel();
+			setCurrent(getCurrent()); // re-render immediately with the transition underway
 			return;
 		}
 
@@ -39,7 +38,7 @@ abstract class ScreenDial extends SingletonAction {
 			return;
 		}
 
-		const fraction = seekFractionFromTap(this.panelIndex, x, y);
+		const fraction = seekFractionFromTap(this.panelIndex, x, y, coverW);
 		if (fraction === null) {
 			return;
 		}
@@ -62,7 +61,7 @@ abstract class ScreenDial extends SingletonAction {
 	}
 
 	private slice(np: NowPlaying | null): string {
-		return panelSvg(np, this.panelIndex, getArtwork(), getBarColors());
+		return panelSvg(np, this.panelIndex, getArtwork(), getBarColors(), getCoverWidth());
 	}
 }
 

@@ -4,21 +4,43 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { BAR_COUNT } from "../render/leftpanel";
+import { BAR_COUNT, COVER_HEIGHT } from "../render/leftpanel";
 import { ADAPTER_FRAMEWORK, ADAPTER_SCRIPT, PERL } from "./adapter";
 
 const execFileAsync = promisify(execFile);
 
 /** Size (px) the cover is downscaled to for display; keeps the pushed image small. */
 const COVER_PX = 120;
+/** Bounds for the cover's on-screen width (px) once fit to the strip height. */
+const MIN_COVER_W = 56;
+const MAX_COVER_W = 196;
 
-/** Cover art for the left panel: a display image and a per-bar colour sample of the art. */
+/** Cover art for the left panel: a display image, per-bar colours, and its on-screen width. */
 export type CoverAssets = {
 	/** Downscaled cover as a data URI, or `null` when unknown. */
 	uri: string | null;
 	/** One colour per visualizer bar, sampled across the art, or `null` when unavailable. */
 	colors: string[] | null;
+	/** On-screen width (px) at the strip height, preserving aspect ratio, or `null` when unknown. */
+	width: number | null;
 };
+
+/** Reads an image's pixel dimensions via sips, or `null` on failure. */
+async function imageSize(file: string): Promise<{ w: number; h: number } | null> {
+	try {
+		const { stdout } = await execFileAsync("/usr/bin/sips", ["-g", "pixelWidth", "-g", "pixelHeight", file], {
+			timeout: 5000,
+		});
+		const w = /pixelWidth:\s*(\d+)/.exec(stdout);
+		const h = /pixelHeight:\s*(\d+)/.exec(stdout);
+		if (w === null || h === null) {
+			return null;
+		}
+		return { w: Number(w[1]), h: Number(h[1]) };
+	} catch {
+		return null;
+	}
+}
 
 /** Parses the pixel row of a tiny uncompressed BMP into hex colours (left to right). */
 function parseBmpRow(buf: Buffer): string[] | null {
@@ -53,7 +75,7 @@ function parseBmpRow(buf: Buffer): string[] | null {
  * artwork, on non-macOS platforms, or on failure.
  */
 export async function getCoverAssets(): Promise<CoverAssets> {
-	const empty: CoverAssets = { uri: null, colors: null };
+	const empty: CoverAssets = { uri: null, colors: null, width: null };
 	if (process.platform !== "darwin") {
 		return empty;
 	}
@@ -86,8 +108,16 @@ export async function getCoverAssets(): Promise<CoverAssets> {
 
 	let uri: string | null = null;
 	let colors: string[] | null = null;
+	let width: number | null = null;
 	try {
 		await writeFile(input, Buffer.from(base64, "base64"));
+
+		// On-screen width from the original aspect ratio, fit to the strip height.
+		const size = await imageSize(input);
+		if (size !== null && size.w > 0 && size.h > 0) {
+			const fitted = Math.round((COVER_HEIGHT * size.w) / size.h);
+			width = Math.max(MIN_COVER_W, Math.min(MAX_COVER_W, fitted));
+		}
 
 		// Downscaled display image.
 		try {
@@ -111,5 +141,5 @@ export async function getCoverAssets(): Promise<CoverAssets> {
 		uri = `data:${mime};base64,${base64}`;
 	}
 
-	return { uri, colors };
+	return { uri, colors, width };
 }

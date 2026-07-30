@@ -3,13 +3,17 @@ import { COVER_PANEL_INDEX, leftPanelContent } from "./leftpanel";
 
 /** Width of a single encoder panel, in pixels. */
 const PANEL_WIDTH = 200;
+/** Number of encoder panels that make up the Stream Deck+ touch strip. */
+const PANEL_COUNT = 4;
+/** Total width of the continuous touch strip, in pixels. */
+const STRIP_WIDTH = PANEL_WIDTH * PANEL_COUNT;
 /** Height of the touch strip, in pixels. */
 const HEIGHT = 100;
 
-/** The text block is centered on the middle of this panel (0-based). Screen 3 = index 2. */
-const CENTER_PANEL_INDEX = 2;
-/** X of the centre point across the whole strip (middle of the centre panel). */
-const CENTER_X = CENTER_PANEL_INDEX * PANEL_WIDTH + PANEL_WIDTH / 2;
+/** Gap kept clear between the cover art and the text/bar content. */
+const ART_GAP = 16;
+/** Gap kept clear at the strip's right edge. */
+const RIGHT_PAD = 16;
 
 /** Title line style. */
 const TITLE_SIZE = 22;
@@ -19,14 +23,7 @@ const ARTIST_SIZE = 15;
 const ARTIST_BASELINE = 60;
 const ARTIST_OPACITY = 0.55;
 
-/** Progress bar spans these panels inclusive: screen 2 (index 1) through screen 4 (index 3). */
-const BAR_START_PANEL = 1;
-const BAR_END_PANEL = 3;
-/** Horizontal padding kept clear at each end of the bar, in pixels. */
-const BAR_PADDING = 24;
-const BAR_LEFT = BAR_START_PANEL * PANEL_WIDTH + BAR_PADDING; // 224 (global)
-const BAR_RIGHT = (BAR_END_PANEL + 1) * PANEL_WIDTH - BAR_PADDING; // 776 (global)
-const BAR_WIDTH = BAR_RIGHT - BAR_LEFT; // 552
+/** Progress bar style. */
 const BAR_HEIGHT = 6;
 const BAR_Y = 70;
 const BAR_RADIUS = 3;
@@ -42,6 +39,15 @@ const TIME_OPACITY = 0.5;
 const BAR_HIT_TOP = 45;
 
 const FONT_FAMILY = "Helvetica, Arial, sans-serif";
+
+/** Horizontal layout of the text/bar content, filling the space to the right of the cover art. */
+type Layout = { centerX: number; barLeft: number; barRight: number; barWidth: number };
+
+function layout(coverW: number): Layout {
+	const barLeft = coverW + ART_GAP;
+	const barRight = STRIP_WIDTH - RIGHT_PAD;
+	return { centerX: (barLeft + barRight) / 2, barLeft, barRight, barWidth: barRight - barLeft };
+}
 
 function escapeXml(value: string): string {
 	return value
@@ -69,10 +75,7 @@ function formatTime(totalSeconds: number): string {
 	return `${minutes}:${ss}`;
 }
 
-/**
- * Elapsed playback time in seconds, advancing with wall-clock time while playing, or `null` when
- * unknown. Not clamped to the track duration.
- */
+/** Elapsed playback time in seconds, advancing with wall-clock time while playing, or `null`. */
 function effectiveElapsedSeconds(np: NowPlaying | null, now: number): number | null {
 	if (np === null || np.elapsedTime === null) {
 		return null;
@@ -84,10 +87,7 @@ function effectiveElapsedSeconds(np: NowPlaying | null, now: number): number | n
 	return Math.max(0, elapsed);
 }
 
-/**
- * Fraction of the track that has played (0..1), or `null` when there is no known duration
- * (e.g. live streams).
- */
+/** Fraction of the track that has played (0..1), or `null` when there is no known duration. */
 export function playbackProgress(np: NowPlaying | null, now = Date.now()): number | null {
 	const elapsed = effectiveElapsedSeconds(np, now);
 	if (elapsed === null || np === null || np.duration === null || np.duration <= 0) {
@@ -102,20 +102,19 @@ export function playbackProgress(np: NowPlaying | null, now = Date.now()): numbe
  * @param panelIndex 0-based index of the tapped panel.
  * @param tapX Tap x within the panel (0..{@link PANEL_WIDTH}).
  * @param tapY Tap y within the panel (0..{@link HEIGHT}).
- * @returns Fraction along the bar (0..1), or `null` if the tap is outside the bar's hit area. The
- * bar's end padding maps to 0 / 1 so taps near the ends still seek to the extremes.
+ * @param coverW Current cover width, which sets where the bar starts.
+ * @returns Fraction along the bar (0..1), or `null` if the tap is outside the bar's hit area.
  */
-export function seekFractionFromTap(panelIndex: number, tapX: number, tapY: number): number | null {
+export function seekFractionFromTap(panelIndex: number, tapX: number, tapY: number, coverW: number): number | null {
 	if (tapY < BAR_HIT_TOP) {
 		return null;
 	}
+	const { barLeft, barRight, barWidth } = layout(coverW);
 	const globalX = panelIndex * PANEL_WIDTH + tapX;
-	const spanLeft = BAR_START_PANEL * PANEL_WIDTH; // 200
-	const spanRight = (BAR_END_PANEL + 1) * PANEL_WIDTH; // 800
-	if (globalX < spanLeft || globalX > spanRight) {
+	if (globalX < barLeft - 8 || globalX > barRight + 8) {
 		return null;
 	}
-	return clamp01((globalX - BAR_LEFT) / BAR_WIDTH);
+	return clamp01((globalX - barLeft) / barWidth);
 }
 
 function textEl(text: string, x: number, baseline: number, size: number, opacity: number, anchor = "middle"): string {
@@ -125,14 +124,14 @@ function textEl(text: string, x: number, baseline: number, size: number, opacity
 	return `<text x="${x}" y="${baseline}" fill="#ffffff" fill-opacity="${opacity}" font-family="${FONT_FAMILY}" font-size="${size}" font-weight="600" text-anchor="${anchor}">${escapeXml(text)}</text>`;
 }
 
-function progressBar(progress: number | null, panelIndex: number): string {
+function progressBar(progress: number | null, panelIndex: number, l: Layout): string {
 	if (progress === null) {
 		return "";
 	}
 	// Bar drawn in global coords, shifted into this panel's local space; SVG clips to the panel edge.
-	const left = BAR_LEFT - panelIndex * PANEL_WIDTH;
-	const track = `<rect x="${left}" y="${BAR_Y}" width="${BAR_WIDTH}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="#ffffff" fill-opacity="${BAR_TRACK_OPACITY}"/>`;
-	const filled = BAR_WIDTH * progress;
+	const left = l.barLeft - panelIndex * PANEL_WIDTH;
+	const track = `<rect x="${left}" y="${BAR_Y}" width="${l.barWidth}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="#ffffff" fill-opacity="${BAR_TRACK_OPACITY}"/>`;
+	const filled = l.barWidth * progress;
 	const fill =
 		filled > 0
 			? `<rect x="${left}" y="${BAR_Y}" width="${filled.toFixed(1)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="#ffffff" fill-opacity="${BAR_FILL_OPACITY}"/>`
@@ -141,7 +140,7 @@ function progressBar(progress: number | null, panelIndex: number): string {
 }
 
 /** Elapsed (left, aligned to bar start) and negative remaining (right, aligned to bar end) labels. */
-function timeLabels(np: NowPlaying | null, panelIndex: number, now: number): string {
+function timeLabels(np: NowPlaying | null, panelIndex: number, now: number, l: Layout): string {
 	const elapsed = effectiveElapsedSeconds(np, now);
 	if (elapsed === null || np === null || np.duration === null || np.duration <= 0) {
 		return "";
@@ -149,8 +148,8 @@ function timeLabels(np: NowPlaying | null, panelIndex: number, now: number): str
 	const played = Math.min(elapsed, np.duration);
 	const remaining = np.duration - played;
 
-	const leftX = BAR_LEFT - panelIndex * PANEL_WIDTH;
-	const rightX = BAR_RIGHT - panelIndex * PANEL_WIDTH;
+	const leftX = l.barLeft - panelIndex * PANEL_WIDTH;
+	const rightX = l.barRight - panelIndex * PANEL_WIDTH;
 	return (
 		textEl(formatTime(played), leftX, TIME_BASELINE, TIME_SIZE, TIME_OPACITY, "start") +
 		textEl(`-${formatTime(remaining)}`, rightX, TIME_BASELINE, TIME_SIZE, TIME_OPACITY, "end")
@@ -158,16 +157,17 @@ function timeLabels(np: NowPlaying | null, panelIndex: number, now: number): str
 }
 
 /**
- * Renders one panel's slice of the now-playing display: a two-line title/artist block centered on
- * screen 3, a progress bar spanning screens 2–4, and elapsed / negative-remaining time labels above
- * the bar ends. Everything is drawn in global strip coordinates shifted into the panel's local space;
- * the root SVG clips to the panel edge, so the four slices tile into one continuous composition over a
- * transparent background.
+ * Renders one panel's slice of the now-playing display: a two-line title/artist block and a progress
+ * bar with time labels, both centered in the space to the right of the cover art, plus — on the left
+ * panel — the cover art / bars visualizer. Everything is drawn in global strip coordinates shifted
+ * into the panel's local space; the root SVG clips to the panel edge, so the four slices tile into one
+ * continuous composition over a transparent background.
  *
  * @param np Current now-playing state, or `null` when nothing is playing.
  * @param panelIndex 0-based index of the panel (0 = leftmost).
  * @param artworkUri Cover art data URI for the left panel, or `null` when unknown.
  * @param barColors Per-bar colours sampled from the cover, or `null` when unknown.
+ * @param coverW On-screen width of the cover art, which sets where the text/bar begin.
  * @returns A base64-encoded SVG data URI for the panel's pixmap.
  */
 export function panelSvg(
@@ -175,20 +175,22 @@ export function panelSvg(
 	panelIndex: number,
 	artworkUri: string | null,
 	barColors: string[] | null,
+	coverW: number,
 ): string {
 	const now = Date.now();
-	const centerX = CENTER_X - panelIndex * PANEL_WIDTH;
+	const l = layout(coverW);
+	const centerX = l.centerX - panelIndex * PANEL_WIDTH;
 	const title = np !== null ? np.title : "";
 	const artist = np !== null ? np.artist : "";
 
 	let content =
 		textEl(title, centerX, TITLE_BASELINE, TITLE_SIZE, 1) +
 		textEl(artist, centerX, ARTIST_BASELINE, ARTIST_SIZE, ARTIST_OPACITY) +
-		progressBar(playbackProgress(np, now), panelIndex) +
-		timeLabels(np, panelIndex, now);
+		progressBar(playbackProgress(np, now), panelIndex, l) +
+		timeLabels(np, panelIndex, now, l);
 
 	if (panelIndex === COVER_PANEL_INDEX) {
-		content += leftPanelContent(np, artworkUri, barColors, now);
+		content += leftPanelContent(np, artworkUri, barColors, coverW, now);
 	}
 
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${PANEL_WIDTH}" height="${HEIGHT}" viewBox="0 0 ${PANEL_WIDTH} ${HEIGHT}">${content}</svg>`;

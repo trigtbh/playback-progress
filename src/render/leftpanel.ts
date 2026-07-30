@@ -1,9 +1,9 @@
 import type { NowPlaying } from "../media/nowplaying";
 
-/** The cover / visualizer occupies this panel (0 = leftmost) as a square at the strip's left edge. */
+/** The cover / visualizer occupies this panel (0 = leftmost) at the strip's left edge. */
 export const COVER_PANEL_INDEX = 0;
-/** Side length of the square cover / visualizer, in pixels (full strip height). */
-export const COVER_SIZE = 100;
+/** Height of the cover / visualizer (the full strip height); its width varies with aspect ratio. */
+export const COVER_HEIGHT = 100;
 /** Number of vertical bars the cover splits into. */
 export const BAR_COUNT = 8;
 
@@ -14,7 +14,6 @@ const HOLD_MS = 120;
 const EQUALIZE_MS = 300;
 const TRANSITION_MS = SPLIT_MS + HOLD_MS + EQUALIZE_MS;
 
-const PITCH = COVER_SIZE / BAR_COUNT;
 /** Gap between bars once fully in visualizer mode. */
 const GAP = 3;
 /** Minimum bar height fraction while oscillating. */
@@ -85,13 +84,13 @@ function barFraction(i: number, t: number, playing: boolean): number {
 	return BAR_MIN_FRACTION + (1 - BAR_MIN_FRACTION) * osc * amp;
 }
 
-function placeholder(): string {
-	return `<rect x="0" y="0" width="${COVER_SIZE}" height="${COVER_SIZE}" rx="12" fill="#1c1c1e"/><text x="${COVER_SIZE / 2}" y="${COVER_SIZE / 2 + 11}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#ffffff" fill-opacity="0.3">&#9835;</text>`;
+function placeholder(coverW: number): string {
+	return `<rect x="0" y="0" width="${coverW}" height="${COVER_HEIGHT}" rx="12" fill="#1c1c1e"/><text x="${coverW / 2}" y="${COVER_HEIGHT / 2 + 11}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="34" fill="#ffffff" fill-opacity="0.3">&#9835;</text>`;
 }
 
-/** The resting cover: a single rounded image. */
-function fullCover(artworkUri: string): string {
-	return `<clipPath id="coverClip"><rect x="0" y="0" width="${COVER_SIZE}" height="${COVER_SIZE}" rx="12"/></clipPath><image x="0" y="0" width="${COVER_SIZE}" height="${COVER_SIZE}" preserveAspectRatio="xMidYMid slice" xlink:href="${artworkUri}" clip-path="url(#coverClip)"/>`;
+/** The resting cover: the whole image at its natural aspect, fit to the strip height. */
+function fullCover(artworkUri: string, coverW: number): string {
+	return `<clipPath id="coverClip"><rect x="0" y="0" width="${coverW}" height="${COVER_HEIGHT}" rx="12"/></clipPath><image x="0" y="0" width="${coverW}" height="${COVER_HEIGHT}" preserveAspectRatio="xMidYMid meet" xlink:href="${artworkUri}" clip-path="url(#coverClip)"/>`;
 }
 
 /**
@@ -100,17 +99,18 @@ function fullCover(artworkUri: string): string {
  * `heightMix` (0..1) blends each bar from full height to its oscillating height. Uses only rects so it
  * renders on the touch panel.
  */
-function bars(np: NowPlaying | null, colors: string[] | null, now: number, gapFactor: number, heightMix: number): string {
+function bars(np: NowPlaying | null, colors: string[] | null, now: number, gapFactor: number, heightMix: number, coverW: number): string {
+	const pitch = coverW / BAR_COUNT;
 	const t = now / 1000;
 	const playing = np !== null && np.playing;
 	const gap = GAP * gapFactor;
-	const barW = PITCH - gap;
+	const barW = pitch - gap;
 
 	let out = "";
 	for (let i = 0; i < BAR_COUNT; i++) {
-		const h = lerp(COVER_SIZE, COVER_SIZE * barFraction(i, t, playing), heightMix);
-		const cellX = i * PITCH + gap / 2;
-		const yTop = (COVER_SIZE - h) / 2;
+		const h = lerp(COVER_HEIGHT, COVER_HEIGHT * barFraction(i, t, playing), heightMix);
+		const cellX = i * pitch + gap / 2;
+		const yTop = (COVER_HEIGHT - h) / 2;
 		const color = colors !== null && colors[i] !== undefined ? colors[i] : "#ffffff";
 		out += `<rect x="${cellX.toFixed(2)}" y="${yTop.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="2" fill="${color}"/>`;
 	}
@@ -119,17 +119,18 @@ function bars(np: NowPlaying | null, colors: string[] | null, now: number, gapFa
 
 /**
  * Renders the left-panel content: cover art that morphs into an equalizer of album-coloured bars and
- * back. Drawn in the strip's global coordinates (x 0..{@link COVER_SIZE}).
+ * back. Drawn in the strip's global coordinates (x 0..`coverW`).
  */
 export function leftPanelContent(
 	np: NowPlaying | null,
 	artworkUri: string | null,
 	barColors: string[] | null,
+	coverW: number,
 	now: number,
 ): string {
 	const { gap, height } = morphPhases(now);
 	if (gap <= 0 && height <= 0) {
-		return artworkUri === null ? placeholder() : fullCover(artworkUri);
+		return artworkUri === null ? placeholder(coverW) : fullCover(artworkUri, coverW);
 	}
-	return bars(np, barColors, now, gap, height);
+	return bars(np, barColors, now, gap, height, coverW);
 }

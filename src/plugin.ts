@@ -42,7 +42,7 @@ function updateArtwork(np: NowPlaying | null): void {
 		return;
 	}
 	lastTrackKey = key;
-	setCover(null, null);
+	setCover(null, null, null);
 	if (np === null) {
 		return;
 	}
@@ -50,7 +50,7 @@ function updateArtwork(np: NowPlaying | null): void {
 		.then((assets) => {
 			// Ignore if the track changed again while fetching.
 			if (trackKey(getCurrent()) === key) {
-				setCover(assets.uri, assets.colors);
+				setCover(assets.uri, assets.colors, assets.width);
 			}
 		})
 		.catch(() => {});

@@ -1,8 +1,12 @@
 import type { NowPlaying } from "./nowplaying";
 
+/** Cover width when no artwork is known (square placeholder). */
+const DEFAULT_COVER_WIDTH = 100;
+
 let current: NowPlaying | null = null;
 let artwork: string | null = null;
 let barColors: string[] | null = null;
+let coverWidth: number = DEFAULT_COVER_WIDTH;
 
 type Listener = (np: NowPlaying | null) => void;
 const listeners = new Set<Listener>();
@@ -34,10 +38,16 @@ export function getBarColors(): string[] | null {
 	return barColors;
 }
 
-/** Stores the current cover art (display image + per-bar colours) and notifies listeners. */
-export function setCover(dataUri: string | null, colors: string[] | null): void {
+/** Returns the cover's on-screen width in pixels (falls back to a square when unknown). */
+export function getCoverWidth(): number {
+	return coverWidth;
+}
+
+/** Stores the current cover art (display image, per-bar colours, width) and notifies listeners. */
+export function setCover(dataUri: string | null, colors: string[] | null, width: number | null): void {
 	artwork = dataUri;
 	barColors = colors;
+	coverWidth = width !== null && width > 0 ? width : DEFAULT_COVER_WIDTH;
 	notify();
 }
 
