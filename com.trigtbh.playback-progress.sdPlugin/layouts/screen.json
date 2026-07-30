@@ -8,8 +8,9 @@
 			"rect": [0, 0, 200, 100],
 			"alignment": "center",
 			"color": "#ffffff",
+			"text-overflow": "ellipsis",
 			"font": {
-				"size": 48,
+				"size": 18,
 				"weight": 600
 			},
 			"value": ""
