@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+
+import { ADAPTER_FRAMEWORK, ADAPTER_SCRIPT, PERL } from "./adapter";
 
 /** A snapshot of the currently playing track (system-wide, any media app). */
 export type NowPlaying = {
@@ -22,13 +22,6 @@ export type NowPlaying = {
 	/** ISO timestamp the {@link elapsedTime} was sampled at, or `null` when unknown. */
 	timestamp: string | null;
 };
-
-// The adapter is bundled under the plugin at `<sdPlugin>/mediaremote`; the compiled plugin runs from
-// `<sdPlugin>/bin/plugin.js`, so resolve the adapter relative to this module.
-const ADAPTER_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "mediaremote");
-const PERL = "/usr/bin/perl";
-const SCRIPT = join(ADAPTER_DIR, "mediaremote-adapter.pl");
-const FRAMEWORK = join(ADAPTER_DIR, "MediaRemoteAdapter.framework");
 
 /** Delay before restarting the stream process if it exits unexpectedly. */
 const RESTART_DELAY = 2000;
@@ -102,7 +95,7 @@ export function watchNowPlaying(handlers: NowPlayingHandlers): () => void {
 	let restartTimer: NodeJS.Timeout | undefined;
 
 	const start = (): void => {
-		child = spawn(PERL, [SCRIPT, FRAMEWORK, "stream", "--no-diff", "--no-artwork", "--debounce=250"], {
+		child = spawn(PERL, [ADAPTER_SCRIPT, ADAPTER_FRAMEWORK, "stream", "--no-diff", "--no-artwork", "--debounce=250"], {
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 

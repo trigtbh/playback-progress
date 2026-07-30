@@ -37,6 +37,9 @@ const TIME_SIZE = 12;
 const TIME_BASELINE = BAR_Y - 6; // 64
 const TIME_OPACITY = 0.5;
 
+/** Taps at or below this y (within the bar's horizontal span) are treated as seeks. */
+const BAR_HIT_TOP = 45;
+
 const FONT_FAMILY = "Helvetica, Arial, sans-serif";
 
 function escapeXml(value: string): string {
@@ -90,6 +93,28 @@ export function playbackProgress(np: NowPlaying | null, now = Date.now()): numbe
 		return null;
 	}
 	return clamp01(elapsed / np.duration);
+}
+
+/**
+ * Maps a touch tap on a panel to a seek position along the progress bar.
+ *
+ * @param panelIndex 0-based index of the tapped panel.
+ * @param tapX Tap x within the panel (0..{@link PANEL_WIDTH}).
+ * @param tapY Tap y within the panel (0..{@link HEIGHT}).
+ * @returns Fraction along the bar (0..1), or `null` if the tap is outside the bar's hit area. The
+ * bar's end padding maps to 0 / 1 so taps near the ends still seek to the extremes.
+ */
+export function seekFractionFromTap(panelIndex: number, tapX: number, tapY: number): number | null {
+	if (tapY < BAR_HIT_TOP) {
+		return null;
+	}
+	const globalX = panelIndex * PANEL_WIDTH + tapX;
+	const spanLeft = BAR_START_PANEL * PANEL_WIDTH; // 200
+	const spanRight = (BAR_END_PANEL + 1) * PANEL_WIDTH; // 800
+	if (globalX < spanLeft || globalX > spanRight) {
+		return null;
+	}
+	return clamp01((globalX - BAR_LEFT) / BAR_WIDTH);
 }
 
 function textEl(text: string, x: number, baseline: number, size: number, opacity: number, anchor = "middle"): string {

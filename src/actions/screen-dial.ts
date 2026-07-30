@@ -1,8 +1,9 @@
-import { action, SingletonAction, WillAppearEvent } from "@elgato/streamdeck";
+import { action, SingletonAction, TouchTapEvent, WillAppearEvent } from "@elgato/streamdeck";
 
+import { seekTo } from "../media/control";
 import type { NowPlaying } from "../media/nowplaying";
-import { getCurrent } from "../media/store";
-import { panelSvg } from "../render/strip";
+import { getCurrent, setCurrent } from "../media/store";
+import { panelSvg, seekFractionFromTap } from "../render/strip";
 
 /**
  * Base class for the four Stream Deck+ encoder panels. Together they render a single line of
@@ -17,6 +18,26 @@ abstract class ScreenDial extends SingletonAction {
 		if (ev.action.isDial()) {
 			return ev.action.setFeedback({ value: this.slice(getCurrent()) });
 		}
+	}
+
+	/** Tapping the progress bar seeks the media to that position. */
+	override async onTouchTap(ev: TouchTapEvent): Promise<void> {
+		const np = getCurrent();
+		if (np === null || np.duration === null || np.duration <= 0) {
+			return;
+		}
+
+		const [x, y] = ev.payload.tapPos;
+		const fraction = seekFractionFromTap(this.panelIndex, x, y);
+		if (fraction === null) {
+			return;
+		}
+
+		const target = fraction * np.duration;
+		await seekTo(target);
+		// Optimistically reflect the new position immediately; the stream will confirm shortly. This
+		// notifies the store, which re-renders every panel so the bar stays consistent across screens.
+		setCurrent({ ...np, elapsedTime: target, timestamp: new Date().toISOString() });
 	}
 
 	/** Pushes this panel's slice of the now-playing line to every visible instance of this action. */
